@@ -11,7 +11,7 @@ sudo yum groupinstall "Development Tools"
 sudo yum install cmake3
 ```
 
-In the directory with the source code, do ```cmake3 .; make``` to build.
+In the directory with the source code, do ```cmake3 .; git apply tunnel-egress-fix.patch; make``` to build.
 
 
 ## Usage
