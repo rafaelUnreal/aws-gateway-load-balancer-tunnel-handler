@@ -1,0 +1,74 @@
+diff --git a/PacketHeader.cpp b/PacketHeader.cpp
+index 0663ed1..04b6b52 100644
+--- a/PacketHeader.cpp
++++ b/PacketHeader.cpp
+@@ -119,3 +119,12 @@ std::size_t PacketHeaderHash::operator()(const PacketHeader &ph) const
+ {
+     return ph.hash();
+ }
++
++/**
++ * Returns the Dst IP of a PacketHeader.
++ *
++ */
++uint32_t PacketHeader::getDst()
++{
++    return this->dst;
++}
+diff --git a/PacketHeader.h b/PacketHeader.h
+index 1d6fdd7..c079e9c 100644
+--- a/PacketHeader.h
++++ b/PacketHeader.h
+@@ -19,6 +19,7 @@ public:
+     bool operator==(const PacketHeader &) const;
+     std::string text() const;
+     std::size_t hash() const;
++    uint32_t getDst();
+ 
+ private:
+     uint8_t   prot;
+diff --git a/TunInterface.cpp b/TunInterface.cpp
+index b445689..a413684 100644
+--- a/TunInterface.cpp
++++ b/TunInterface.cpp
+@@ -21,6 +21,9 @@
+ #include <exception>
+ #include <iostream>
+ #include "utils.h"
++#include "PacketHeader.h"
++#include <netinet/in.h>
++#include <sys/socket.h>
+ 
+ using namespace std::string_literals;
+ 
+@@ -138,7 +141,29 @@ void TunInterface::writePacket(unsigned char *pkt, ssize_t pktlen)
+ {
+     lastPacket = std::chrono::steady_clock::now();
+     pktsOut ++; bytesOut += pktlen;
+-    write(fd, (void *)pkt, pktlen);
++
++    struct sockaddr_in sout;
++    int sock;
++
++    auto ph = PacketHeader(pkt, pktlen);
++
++    if(debug) *debugout << currentTime() << ": Tun : Flow " << ph << " WritePacket" << std::endl;
++
++    if (-1==(sock=socket(AF_INET,SOCK_RAW,IPPROTO_RAW))) return;
++    memset(&sout,0,sizeof(sout));
++
++
++    sout.sin_family = AF_INET;
++    sout.sin_addr.s_addr = ph.getDst();
++
++    if (-1==sendto(sock, pkt, pktlen, 0, (struct sockaddr *)&sout, sizeof(struct sockaddr_in)))
++    {
++        close(sock);
++        return ;
++    }
++
++    close(sock);
++    return;
+ }
+ 
+ /**
